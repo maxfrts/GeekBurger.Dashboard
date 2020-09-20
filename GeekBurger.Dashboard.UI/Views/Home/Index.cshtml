@@ -1,0 +1,231 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+}
+
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://code.highcharts.com/modules/exporting.js"></script>
+<script src="https://code.highcharts.com/modules/export-data.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+
+<h4 class="text-center">Sales by Period</h4>
+<div class="container">
+    <div class="row">
+        <div class="col-sm-2 col-sm-offset-3">
+            <input type="radio" name="period" id="Day" value="day" checked="checked">
+            <label for="day">Day</label>
+
+            <input type="radio" name="period" id="hour" value="hour">
+            <label for="hour">Hour</label>
+
+            <input type="radio" name="period" id="minute" value="minute">
+            <label for="minute">Minute</label>
+        </div>
+        <div class="col-sm-2">
+
+            <input type="number" id="PeriodValue" placeholder="value" class="form-control">
+        </div>
+        <div class="col-sm-2">
+            <button type="button" class="btn btn-primary" onclick="GetSales();">Get Sales</button>
+        </div>
+    </div>
+</div>
+
+<br />
+<div id="sales" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
+<br />
+<div class="container">
+    <div class="row">
+        <div class="col-sm-2 col-sm-offset-5">
+            <button type="button" class="btn btn-primary" onclick="GetUserRestrictions();">Get Restrictions</button>
+        </div>
+    </div>
+</div>
+<br />
+<div id="usersWithLessOffer" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
+
+<script>
+    var lojas = [];
+    var pedidos = [];
+    var valores = [];
+    var restricoes = [];
+    var users = [];
+
+    jQuery.support.cors = true;
+
+    function GetSales() {
+        var periodType = document.querySelector('input[name="period"]:checked').value;
+        var periodValue = document.querySelector('#PeriodValue').value;
+
+        if (periodValue == 0 || periodValue == '') {
+            alert("Oops! You need to set a value > 0 to get the sales.");
+            return;
+        }
+
+        var url = 'https://geekburgerdashboard.azurewebsites.net/api/dashboard/sales?Per=' + periodType + '&Value=' + periodValue;
+
+        $.ajax({
+            url: url,
+            method: 'GET',
+            accept: 'application/json',
+            success(response) {
+                lojas = [];
+                pedidos = [];
+                valores = [];
+
+                response.forEach(function (e) {
+                    lojas.push(e.storeName);
+                    pedidos.push(e.total);
+                    valores.push(e.value);
+                });
+
+                salesChart();
+            },
+            error(erro) {
+
+            }
+        });
+
+    }
+
+    function GetUserRestrictions() {
+        jQuery.support.cors = true;
+        $.ajax({
+            url: 'https://geekburgerdashboard.azurewebsites.net/api/dashboard/usersWithLessOffer',
+            method: 'GET',
+            accept: 'application/json',
+            success(response) {
+                restricoes = [];
+                users = [];
+                response.forEach(function (e) {
+                    restricoes.push(e.restrictions);
+                    users.push(e.users);
+                });
+                usersWithLessOffer();
+            },
+            error(erro) {
+
+            }
+        });
+    }
+
+
+    function salesChart() {
+        Highcharts.chart('sales', {
+            chart: {
+                zoomType: 'xy'
+            },
+            title: {
+                text: 'Store Sales'
+            },
+            xAxis: [{
+                categories: lojas,
+                crosshair: false
+            }],
+            yAxis: [{ // Primary yAxis
+                labels: {
+                    format: 'R$ {value}',
+                    style: {
+                        color: Highcharts.getOptions().colors[1]
+                    }
+                },
+                title: {
+                    text: 'Total',
+                    style: {
+                        color: Highcharts.getOptions().colors[1]
+                    }
+                }
+            }, { // Secondary yAxis
+                title: {
+                    text: 'Orders',
+                    style: {
+                        color: Highcharts.getOptions().colors[0]
+                    }
+                },
+                labels: {
+                    format: '{value}',
+                    style: {
+                        color: Highcharts.getOptions().colors[0]
+                    }
+                },
+                opposite: true
+            }],
+            tooltip: {
+                shared: true
+            },
+            legend: {
+                layout: 'vertical',
+                align: 'left',
+                x: 120,
+                verticalAlign: 'top',
+                y: 100,
+                floating: true,
+                backgroundColor: (Highcharts.theme && Highcharts.theme.legendBackgroundColor) || 'rgba(255,255,255,0.25)'
+            },
+            series: [{
+                name: 'Orders',
+                type: 'column',
+                yAxis: 1,
+                data: pedidos,
+            }, {
+                name: 'Total',
+                type: 'column',
+                data: valores,
+                tooltip: {
+                    valuePrefix: 'R$ '
+                }
+            }]
+        });
+    }
+
+    function usersWithLessOffer() {
+
+        Highcharts.chart('usersWithLessOffer', {
+            chart: {
+                zoomType: 'xy'
+            },
+            title: {
+                text: 'User Restrictions'
+            },
+            xAxis: [{
+                categories: restricoes,
+                crosshair: false
+            }],
+            yAxis: [{ // Primary yAxis
+                labels: {
+                    format: '{value}',
+                    style: {
+                        color: Highcharts.getOptions().colors[1]
+                    }
+                },
+                title: {
+                    text: 'Total users',
+                    style: {
+                        color: Highcharts.getOptions().colors[1]
+                    }
+                }
+            }],
+            tooltip: {
+                shared: true
+            },
+            legend: {
+                layout: 'vertical',
+                align: 'left',
+                x: 120,
+                verticalAlign: 'top',
+                y: 100,
+                floating: true,
+                backgroundColor: (Highcharts.theme && Highcharts.theme.legendBackgroundColor) || 'rgba(255,255,255,0.25)'
+            },
+            series: [{
+                name: 'Total users',
+                type: 'column',
+                data: users
+            }]
+        });
+    };
+
+
+
+
+</script>
+
